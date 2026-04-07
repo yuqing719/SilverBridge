@@ -67,3 +67,16 @@
 ### 数据库
 - **关系型数据库:** MySQL 
 - **设计范式:** 第三范式，包含用户表、角色表、活动表、订单表等
+
+## 📂 项目结构 (Project Structure)
+
+```text
+SilverBridge/
+├── silver-bridge-web/       # 前端：统一 Vue3 项目 (含所有角色页面)
+│   ├── src/views/elder/     # 老人/子女端页面 
+│   ├── src/views/admin/     # 管理员端页面 
+│   └── src/components/      # 公共组件 (大字按钮/导航栏)
+├── silver-bridge-server/    # 后端：Spring Boot 核心代码
+├── docs/                    # 文档：需求、设计、测试报告
+├── sql/                     # 数据库：初始化脚本
+└── README.md
