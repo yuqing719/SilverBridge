@@ -50,3 +50,20 @@
 - 发布大字版文章与视频教程链接。
 - 支持后台富文本发布，前端自适应展示。
 - *技术实现：内容管理模块 (CMS)*
+
+## 🛠️ 技术栈 (Tech Stack)
+
+### 前端 
+- **核心框架:** Vue 3 + Vite
+- **UI 组件库:** Element Plus
+- **HTTP 客户端:** Axios
+- **图表库:** ECharts
+
+### 后端
+- **核心框架:** Java Spring Boot 3
+- **安全认证:** Spring Security + JWT
+- **API 文档:** Swagger / Knif4j
+
+### 数据库
+- **关系型数据库:** MySQL 
+- **设计范式:** 第三范式，包含用户表、角色表、活动表、订单表等
