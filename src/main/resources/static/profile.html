@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>个人</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <h1>个人中心</h1>
+      <div class="sub">资料与身份切换（本页为静态演示）</div>
+    </div>
+
+    <div class="content">
+      <div class="card">
+        <div class="card-title">
+          <span>账户模式</span>
+          <span class="badge" id="modeBadge">老人</span>
+        </div>
+        <div class="segment" id="modeSeg">
+          <button data-value="elder" class="active">老人</button>
+          <button data-value="child">子女</button>
+          <button data-value="volunteer">志愿者</button>
+        </div>
+        <div class="row muted" id="modeHint">当前：老人模式（用于平安打卡/紧急求助）</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>个人资料</span>
+          <span class="badge">演示</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div style="width:48px;height:48px;border-radius:12px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;">SB</div>
+          <div>
+            <div style="font-weight:800;">王阿姨</div>
+            <div class="muted">手机号：138****0000</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>紧急联系人</span>
+          <span class="badge">演示</span>
+        </div>
+        <ul class="list">
+          <li>
+            <a class="link" href="tel:13800000000">
+              <div style="font-weight:800;">儿子小王</div>
+              <div class="hint">13800000000</div>
+            </a>
+          </li>
+          <li>
+            <a class="link" href="tel:02112345678">
+              <div style="font-weight:800;">社区值班</div>
+              <div class="hint">02112345678</div>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>身份凭证二维码</span>
+          <span class="badge">保存/打印</span>
+        </div>
+        <div class="qr" id="qrBox">二维码占位</div>
+        <div style="height:10px;"></div>
+        <div class="grid-2">
+          <button id="save" class="btn btn-primary">保存</button>
+          <button id="print" class="btn">打印</button>
+        </div>
+        <div class="row muted">说明：这里用 SVG 生成占位二维码图（不依赖第三方库）</div>
+      </div>
+
+      <div class="card">
+        <button class="btn" style="width:100%;">退出登录</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    renderNav('profile');
+
+    const modeBadge = qs('#modeBadge');
+    const modeHint = qs('#modeHint');
+    const qrBox = qs('#qrBox');
+
+    let mode = 'elder';
+
+    function updateMode(){
+      const map = {
+        elder: { label:'老人', hint:'当前：老人模式（用于平安打卡/紧急求助）' },
+        child: { label:'子女', hint:'当前：子女模式（用于查看老人状态/预警）' },
+        volunteer: { label:'志愿者', hint:'当前：志愿者模式（用于接单服务/积分记录）' }
+      };
+      modeBadge.textContent = map[mode].label;
+      modeHint.textContent = map[mode].hint;
+      setSegmentActive('#modeSeg', mode);
+      renderQr();
+    }
+
+    function renderQr(){
+      const payload = `SilverBridge|mode=${mode}|user=demo`;
+      // 生成一个简单的“伪二维码”SVG：保证可保存/打印，不做真正编码
+      const size = 160;
+      const cell = 8;
+      const cols = Math.floor(size / cell);
+      let bits = 0;
+      for (let i=0;i<payload.length;i++) bits = (bits * 131 + payload.charCodeAt(i)) >>> 0;
+
+      let rects = '';
+      for (let y=0;y<cols;y++){
+        for (let x=0;x<cols;x++){
+          const v = (bits ^ (x*2654435761) ^ (y*1597334677)) >>> 0;
+          const on = ((v >>> ((x+y)%24)) & 1) === 1;
+          // 留白边框
+          if (x<2 || y<2 || x>cols-3 || y>cols-3) continue;
+          if (on) rects += `<rect x="${x*cell}" y="${y*cell}" width="${cell}" height="${cell}" fill="#111"/>`;
+        }
+      }
+
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+          <rect x="0" y="0" width="${size}" height="${size}" fill="#fff"/>
+          ${rects}
+        </svg>
+      `.trim();
+
+      qrBox.innerHTML = svg;
+      qrBox.dataset.svg = svg;
+    }
+
+    qs('#modeSeg').addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      mode = btn.dataset.value;
+      updateMode();
+    });
+
+    qs('#print').addEventListener('click', () => window.print());
+
+    qs('#save').addEventListener('click', () => {
+      const svg = qrBox.dataset.svg || '';
+      const blob = new Blob([svg], {type:'image/svg+xml'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `silverbridge-qr-${mode}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    updateMode();
+  </script>
+</body>
+</html>

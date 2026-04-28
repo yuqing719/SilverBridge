@@ -80,3 +80,45 @@ SilverBridge/
 ├── docs/                    # 文档：需求、设计、测试报告
 ├── sql/                     # 数据库：初始化脚本
 └── README.md
+
+---
+
+## ✅ 本仓库已实现：用户安全与每日平安监护（可运行 Demo）
+
+> 说明：原 README 描述的是目标“前后端分仓/多模块”结构；但当前工作区只有一个 Maven 工程。
+> 我已将其升级为可直接运行的 Spring Boot 单体 Demo（内置 H2 数据库 + 静态页面），覆盖：
+> - 老人每日平安打卡（每天一次、防重复、展示打卡时间）
+> - 20:00 自动检测未打卡并生成预警（子女端可见）
+> - 紧急联系人列表 + `tel:` 一键拨号（移动端可用）
+> - 子女端查看老人今日状态与预警
+
+### 运行
+
+在项目根目录执行：
+
+- 启动：`mvn spring-boot:run`
+- 测试：`mvn test`
+
+启动后访问：
+
+- 首页：`http://localhost:8080/`
+- 老人端：`http://localhost:8080/elder.html?elderId=1`
+- 子女端：`http://localhost:8080/child.html?childId=2`
+
+默认演示数据：
+
+- 老人：ID=1（王阿姨）
+- 子女：ID=2（小王）
+
+### API（用于验收/联调）
+
+- `POST /api/elders/{elderId}/checkins/today` 今日打卡（重复会返回 409）
+- `GET /api/elders/{elderId}/status/today` 老人今日状态
+- `GET /api/elders/{elderId}/contacts` 紧急联系人列表
+- `GET /api/children/{childId}/elders/status/today` 子女查看绑定老人状态
+- `GET /api/children/{childId}/alerts/today` 子女查看今日未打卡预警
+
+### 定时预警
+
+- 服务端定时任务：每天 20:00（Asia/Shanghai 时区）生成未打卡预警
+- 你也可以通过调用服务层 `generateMissingCheckinAlerts(date)`（已在测试中覆盖）来验证逻辑
