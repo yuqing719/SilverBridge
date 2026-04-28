@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>安全</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <h1>安全</h1>
+      <div class="sub" id="sub">今日：-</div>
+    </div>
+
+    <div class="content">
+      <div class="card">
+        <div class="card-title">
+          <span>每日平安打卡</span>
+          <span class="badge" id="checkinBadge">加载中</span>
+        </div>
+        <button id="checkinBtn" class="big-btn">我安全</button>
+        <div class="row" id="checkinStatus" class="muted"></div>
+        <div class="row muted">提示：每天只能打卡一次</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>未按时签到提醒</span>
+          <span class="badge" id="alertBadge">加载中</span>
+        </div>
+        <div id="alerts"></div>
+        <div class="row muted">自动检测时间：20:00（服务端定时任务）</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>紧急联系人</span>
+          <span class="badge">一键拨号</span>
+        </div>
+        <ul class="list" id="contacts"></ul>
+        <div class="row">
+          <a id="hotline" class="btn btn-danger" href="#" style="display:block;text-align:center;text-decoration:none;">拨打求助热线</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>今日老人状态（子女端视角）</span>
+          <span class="badge">绑定老人</span>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>老人</th>
+              <th>状态</th>
+              <th>打卡时间</th>
+            </tr>
+          </thead>
+          <tbody id="elderRows"></tbody>
+        </table>
+        <div class="row muted">演示参数：`?elderId=1&childId=2`（可改）</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    renderNav('safety');
+    qs('#sub').textContent = `今日：${todayStr()}  ${nowStr().slice(11)}`;
+
+    const elderId = Number(getParam('elderId', '1'));
+    const childId = Number(getParam('childId', '2'));
+
+    const checkinBtn = qs('#checkinBtn');
+    const checkinBadge = qs('#checkinBadge');
+    const checkinStatus = qs('#checkinStatus');
+
+    const alertBadge = qs('#alertBadge');
+    const alertsEl = qs('#alerts');
+    const contactsEl = qs('#contacts');
+    const hotline = qs('#hotline');
+    const elderRows = qs('#elderRows');
+
+    function setCheckinUi(status){
+      if (status.missingCheckinAlert) {
+        checkinBadge.className = 'badge badge-danger';
+        checkinBadge.textContent = '异常';
+      } else if (status.checkedIn) {
+        checkinBadge.className = 'badge badge-ok';
+        checkinBadge.textContent = '已打卡';
+      } else {
+        checkinBadge.className = 'badge badge-danger';
+        checkinBadge.textContent = '未打卡';
+      }
+
+      checkinBtn.disabled = !!status.checkedIn;
+      checkinBtn.textContent = status.checkedIn ? '今日已确认安全' : '我安全';
+
+      if (status.checkedIn) {
+        checkinStatus.innerHTML = `<div>打卡时间：<span class="muted">${formatDateTime(status.checkinTime)}</span></div>`;
+      } else {
+        checkinStatus.innerHTML = `<div class="muted">点击按钮告知家人你安全</div>`;
+      }
+    }
+
+    function renderAlerts(list){
+      if (!list || list.length === 0) {
+        alertBadge.className = 'badge badge-ok';
+        alertBadge.textContent = '正常';
+        alertsEl.innerHTML = `<div class="muted">暂无未打卡预警</div>`;
+        return;
+      }
+      alertBadge.className = 'badge badge-danger';
+      alertBadge.textContent = `${list.length} 条`;
+      const items = list.map(a => {
+        return `
+          <div style="padding:10px 0;border-top:1px solid var(--line);">
+            <div><span class="badge badge-danger">未打卡预警</span> <strong>${a.elderName}</strong></div>
+            <div class="muted">生成时间：${formatDateTime(a.createdAt)}</div>
+          </div>
+        `;
+      }).join('');
+      alertsEl.innerHTML = `<div>${items}</div>`;
+    }
+
+    function renderContacts(list){
+      contactsEl.innerHTML = '';
+      let firstPhone = null;
+      for (const c of list) {
+        if (!firstPhone) firstPhone = c.phone;
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <a class="link" href="tel:${c.phone}">
+            <div style="font-size:16px;font-weight:700;">${c.name}</div>
+            <div class="hint">${c.phone}</div>
+          </a>
+        `;
+        contactsEl.appendChild(li);
+      }
+      hotline.href = firstPhone ? `tel:${firstPhone}` : '#';
+      hotline.style.opacity = firstPhone ? '1' : '0.6';
+    }
+
+    function renderElderRows(statuses){
+      elderRows.innerHTML = '';
+      for (const s of statuses) {
+        const tr = document.createElement('tr');
+        const badge = s.missingCheckinAlert
+          ? `<span class="badge badge-danger">未打卡（预警）</span>`
+          : (s.checkedIn ? `<span class="badge badge-ok">已打卡</span>` : `<span class="badge badge-danger">未打卡</span>`);
+        tr.innerHTML = `
+          <td>${s.elderName}</td>
+          <td>${badge}</td>
+          <td class="muted">${formatDateTime(s.checkinTime)}</td>
+        `;
+        elderRows.appendChild(tr);
+      }
+      if (statuses.length === 0) {
+        elderRows.innerHTML = `<tr><td colspan="3" class="muted">暂无绑定老人</td></tr>`;
+      }
+    }
+
+    async function loadAll(){
+      const [elderStatus, alerts, contacts, statuses] = await Promise.all([
+        fetchJson(`/api/elders/${elderId}/status/today`),
+        fetchJson(`/api/children/${childId}/alerts/today`),
+        fetchJson(`/api/elders/${elderId}/contacts`),
+        fetchJson(`/api/children/${childId}/elders/status/today`)
+      ]);
+
+      setCheckinUi(elderStatus);
+      renderAlerts(alerts);
+      renderContacts(contacts);
+      renderElderRows(statuses);
+    }
+
+    checkinBtn.addEventListener('click', async () => {
+      try{
+        await fetchJson(`/api/elders/${elderId}/checkins/today`, {method:'POST'});
+      }catch(e){
+        if (e.status !== 409) alert(e.message);
+      }finally{
+        await loadAll();
+      }
+    });
+
+    (async () => {
+      try{
+        await loadAll();
+      }catch(e){
+        alert('后端未启动或接口异常：' + e.message);
+      }
+      setInterval(() => loadAll().catch(()=>{}), 30_000);
+    })();
+  </script>
+</body>
+</html>

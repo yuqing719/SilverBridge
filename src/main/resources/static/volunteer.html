@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>志愿者</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <h1>志愿者大厅</h1>
+      <div class="sub">接单服务 + 积分记录（本页使用本地存储演示）</div>
+    </div>
+
+    <div class="content">
+      <div class="card">
+        <div class="card-title">
+          <span>筛选</span>
+          <span class="badge" id="pointBadge">积分 0</span>
+        </div>
+        <div class="segment" id="tabSeg">
+          <button data-value="all" class="active">全部</button>
+          <button data-value="near">距离</button>
+          <button data-value="mine">记录</button>
+        </div>
+      </div>
+
+      <div class="card" id="listCard">
+        <div class="card-title">
+          <span id="listTitle">任务列表</span>
+          <span class="badge" id="listBadge">0</span>
+        </div>
+        <div id="list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    renderNav('volunteer');
+
+    const KEY = 'sb.volunteer.accepted';
+    const pointBadge = qs('#pointBadge');
+    const listTitle = qs('#listTitle');
+    const listBadge = qs('#listBadge');
+    const listEl = qs('#list');
+
+    let tab = 'all';
+
+    const tasks = [
+      { id:'t1', title:'陪同买菜', where:'社区门口', distanceKm:0.8, points:10, time:'今天 16:00' },
+      { id:'t2', title:'上门测血压', where:'3号楼 502', distanceKm:1.6, points:12, time:'今天 18:30' },
+      { id:'t3', title:'手机使用指导', where:'活动室', distanceKm:0.5, points:8, time:'明天 10:00' }
+    ];
+
+    function accepted(){
+      return lsGet(KEY, []);
+    }
+
+    function isAccepted(id){
+      return accepted().some(x => x.id === id);
+    }
+
+    function acceptTask(task){
+      const list = accepted();
+      if (list.some(x => x.id === task.id)) return;
+      list.unshift({ ...task, acceptedAt: nowStr() });
+      lsSet(KEY, list);
+    }
+
+    function points(){
+      return accepted().reduce((sum, t) => sum + (t.points || 0), 0);
+    }
+
+    function render(){
+      pointBadge.textContent = `积分 ${points()}`;
+
+      if (tab === 'mine') {
+        listTitle.textContent = '我的记录';
+        const mine = accepted();
+        listBadge.textContent = mine.length;
+        if (mine.length === 0) {
+          listEl.innerHTML = `<div class="muted">暂无记录，去“全部”接单吧</div>`;
+          return;
+        }
+        listEl.innerHTML = mine.map(t => `
+          <div style="padding:10px 0;border-top:1px solid var(--line);">
+            <div style="display:flex;justify-content:space-between;gap:10px;">
+              <div>
+                <div style="font-weight:800;">${t.title}</div>
+                <div class="muted">${t.where} · ${t.time}</div>
+                <div class="muted">接单时间：${t.acceptedAt}</div>
+              </div>
+              <div style="text-align:right;min-width:88px;">
+                <div class="badge badge-ok">+${t.points}</div>
+                <div class="muted">已接单</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+        return;
+      }
+
+      const list = (tab === 'near')
+        ? [...tasks].sort((a,b) => a.distanceKm - b.distanceKm)
+        : tasks;
+
+      listTitle.textContent = tab === 'near' ? '按距离排序' : '任务列表';
+      listBadge.textContent = list.length;
+
+      listEl.innerHTML = list.map(t => {
+        const acceptedFlag = isAccepted(t.id);
+        const btn = acceptedFlag
+          ? `<button class="btn" disabled style="width:100%;opacity:0.7;">已接受</button>`
+          : `<button class="btn btn-primary" data-accept="${t.id}" style="width:100%;">接受任务</button>`;
+
+        return `
+          <div style="padding:10px 0;border-top:1px solid var(--line);">
+            <div style="font-weight:800;">${t.title}</div>
+            <div class="muted">${t.where} · ${t.time}</div>
+            <div class="muted">距离 ${t.distanceKm} km · 积分 +${t.points}</div>
+            <div style="height:10px;"></div>
+            ${btn}
+          </div>
+        `;
+      }).join('');
+    }
+
+    qs('#tabSeg').addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      tab = btn.dataset.value;
+      setSegmentActive('#tabSeg', tab);
+      render();
+    });
+
+    listEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-accept]');
+      if (!btn) return;
+      const id = btn.dataset.accept;
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+      acceptTask(task);
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
