@@ -3,82 +3,113 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>个人</title>
+  <title>个人中心</title>
   <link rel="stylesheet" href="/assets/app.css" />
+  <style>
+    .avatar{width:52px;height:52px;border-radius:14px;background:#111;color:#fff;
+      display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0;}
+    .edit-row{display:flex;gap:8px;align-items:center;}
+    .edit-row .input{flex:1;}
+    .section-divider{margin:10px 0 4px;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
+    .pwd-toggle{cursor:pointer;font-size:18px;padding:0 4px;user-select:none;}
+    .input-wrap{position:relative;display:flex;align-items:center;}
+    .input-wrap .input{padding-right:40px;}
+    .input-wrap .pwd-toggle{position:absolute;right:10px;}
+  </style>
 </head>
 <body>
   <div class="app">
     <div class="header">
       <h1>个人中心</h1>
-      <div class="sub">资料与身份切换（本页为静态演示）</div>
+      <div class="sub" id="headerSub">正在加载…</div>
     </div>
 
     <div class="content">
-      <div class="card">
-        <div class="card-title">
-          <span>账户模式</span>
-          <span class="badge" id="modeBadge">老人</span>
-        </div>
-        <div class="segment" id="modeSeg">
-          <button data-value="elder" class="active">老人</button>
-          <button data-value="child">子女</button>
-          <button data-value="volunteer">志愿者</button>
-        </div>
-        <div class="row muted" id="modeHint">当前：老人模式（用于平安打卡/紧急求助）</div>
-      </div>
 
+      <!-- 账户信息卡 -->
       <div class="card">
         <div class="card-title">
-          <span>个人资料</span>
-          <span class="badge">演示</span>
+          <span>账户信息</span>
+          <span class="badge" id="roleBadge">-</span>
         </div>
         <div style="display:flex;gap:12px;align-items:center;">
-          <div style="width:48px;height:48px;border-radius:12px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;">SB</div>
+          <div class="avatar" id="avatarEl">-</div>
           <div>
-            <div style="font-weight:800;">王阿姨</div>
-            <div class="muted">手机号：138****0000</div>
+            <div style="font-weight:800;" id="nameDisplay">-</div>
+            <div class="muted" id="phoneDisplay">手机号：-</div>
           </div>
         </div>
       </div>
 
+      <!-- 修改资料卡 -->
       <div class="card">
         <div class="card-title">
-          <span>紧急联系人</span>
-          <span class="badge">演示</span>
+          <span>修改资料</span>
         </div>
-        <ul class="list">
-          <li>
-            <a class="link" href="tel:13800000000">
-              <div style="font-weight:800;">儿子小王</div>
-              <div class="hint">13800000000</div>
-            </a>
-          </li>
-          <li>
-            <a class="link" href="tel:02112345678">
-              <div style="font-weight:800;">社区值班</div>
-              <div class="hint">02112345678</div>
-            </a>
-          </li>
+        <div class="section-divider">昵称</div>
+        <div class="edit-row">
+          <input class="input" id="inputName" placeholder="昵称" />
+        </div>
+        <div class="section-divider" style="margin-top:12px;">手机号</div>
+        <div class="edit-row">
+          <input class="input" id="inputPhone" placeholder="手机号（选填）" type="tel" />
+        </div>
+        <div class="error-msg" id="profileError" style="color:var(--danger);font-size:12px;margin-top:8px;min-height:16px;"></div>
+        <div class="grid-2" style="margin-top:10px;">
+          <button class="btn" id="cancelProfileBtn">取消</button>
+          <button class="btn btn-primary" id="saveProfileBtn">保存</button>
+        </div>
+      </div>
+
+      <!-- 修改密码卡 -->
+      <div class="card">
+        <div class="card-title">
+          <span>修改密码</span>
+        </div>
+        <div class="section-divider">原密码</div>
+        <div class="input-wrap">
+          <input class="input" id="inputOldPwd" type="password" placeholder="原密码" autocomplete="current-password" />
+          <span class="pwd-toggle" data-target="inputOldPwd">👁</span>
+        </div>
+        <div class="section-divider" style="margin-top:12px;">新密码（至少 6 位）</div>
+        <div class="input-wrap">
+          <input class="input" id="inputNewPwd" type="password" placeholder="新密码" autocomplete="new-password" />
+          <span class="pwd-toggle" data-target="inputNewPwd">👁</span>
+        </div>
+        <div class="error-msg" id="pwdError" style="color:var(--danger);font-size:12px;margin-top:8px;min-height:16px;"></div>
+        <button class="btn btn-primary" id="changePwdBtn" style="width:100%;margin-top:10px;">确认修改</button>
+      </div>
+
+      <!-- 紧急联系人卡（老人角色可见） -->
+      <div class="card" id="contactsCard" style="display:none;">
+        <div class="card-title">
+          <span>紧急联系人</span>
+          <span class="badge">来自后端</span>
+        </div>
+        <ul class="list" id="contactsList">
+          <li class="muted">加载中…</li>
         </ul>
       </div>
 
+      <!-- 身份凭证二维码 -->
       <div class="card">
         <div class="card-title">
           <span>身份凭证二维码</span>
           <span class="badge">保存/打印</span>
         </div>
-        <div class="qr" id="qrBox">二维码占位</div>
+        <div class="qr" id="qrBox">加载中…</div>
         <div style="height:10px;"></div>
         <div class="grid-2">
           <button id="save" class="btn btn-primary">保存</button>
           <button id="print" class="btn">打印</button>
         </div>
-        <div class="row muted">说明：这里用 SVG 生成占位二维码图（不依赖第三方库）</div>
       </div>
 
+      <!-- 退出登录 -->
       <div class="card">
-        <button class="btn" style="width:100%;">退出登录</button>
+        <button class="btn btn-danger" id="logoutBtn" style="width:100%;">退出登录</button>
       </div>
+
     </div>
   </div>
 
@@ -86,78 +117,158 @@
   <script>
     renderNav('profile');
 
-    const modeBadge = qs('#modeBadge');
-    const modeHint = qs('#modeHint');
-    const qrBox = qs('#qrBox');
+    let currentUser = null;
 
-    let mode = 'elder';
+    const roleLabel = { ELDER: '老人', CHILD: '子女', VOLUNTEER: '志愿者' };
 
-    function updateMode(){
-      const map = {
-        elder: { label:'老人', hint:'当前：老人模式（用于平安打卡/紧急求助）' },
-        child: { label:'子女', hint:'当前：子女模式（用于查看老人状态/预警）' },
-        volunteer: { label:'志愿者', hint:'当前：志愿者模式（用于接单服务/积分记录）' }
-      };
-      modeBadge.textContent = map[mode].label;
-      modeHint.textContent = map[mode].hint;
-      setSegmentActive('#modeSeg', mode);
-      renderQr();
+    // ── 初始化加载 ────────────────────────────────────────────────────
+    async function loadProfile() {
+      try {
+        const data = await fetchJson('/api/users/me');
+        currentUser = data;
+        renderProfile(data);
+      } catch(e) {
+        if (e.status === 401) {
+          location.href = '/login.html?next=' + encodeURIComponent(location.pathname);
+        }
+      }
     }
 
-    function renderQr(){
-      const payload = `SilverBridge|mode=${mode}|user=demo`;
-      // 生成一个简单的“伪二维码”SVG：保证可保存/打印，不做真正编码
-      const size = 160;
-      const cell = 8;
+    function renderProfile(data) {
+      qs('#headerSub').textContent = '欢迎，' + data.name;
+      qs('#roleBadge').textContent = roleLabel[data.role] || data.role;
+      qs('#avatarEl').textContent  = data.name.charAt(0);
+      qs('#nameDisplay').textContent  = data.name;
+      qs('#phoneDisplay').textContent = '手机号：' + (data.phone || '未设置');
+
+      qs('#inputName').value  = data.name;
+      qs('#inputPhone').value = data.phone || '';
+
+      if (data.role === 'ELDER') {
+        qs('#contactsCard').style.display = '';
+        loadContacts(data.id);
+      }
+
+      renderQr(data);
+    }
+
+    async function loadContacts(elderId) {
+      try {
+        const list = await fetchJson('/api/elders/' + elderId + '/contacts');
+        const ul = qs('#contactsList');
+        if (!list.length) { ul.innerHTML = '<li class="muted">暂无联系人</li>'; return; }
+        ul.innerHTML = list.map(c => `
+          <li>
+            <a class="link" href="tel:${c.phone}">
+              <div style="font-weight:800;">${c.name}</div>
+              <div class="hint">${c.phone}</div>
+            </a>
+          </li>`).join('');
+      } catch { /* ignore */ }
+    }
+
+    // ── 修改资料 ──────────────────────────────────────────────────────
+    qs('#saveProfileBtn').addEventListener('click', async () => {
+      const name  = qs('#inputName').value.trim();
+      const phone = qs('#inputPhone').value.trim();
+      qs('#profileError').textContent = '';
+      if (!name) { qs('#profileError').textContent = '昵称不能为空'; return; }
+      try {
+        const data = await fetchJson('/api/users/me', {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ name, phone })
+        });
+        currentUser = data;
+        renderProfile(data);
+        qs('#profileError').style.color = 'var(--ok)';
+        qs('#profileError').textContent = '✓ 保存成功';
+        setTimeout(() => { qs('#profileError').textContent = ''; qs('#profileError').style.color = ''; }, 2000);
+      } catch(e) {
+        qs('#profileError').textContent = e.message || '保存失败';
+      }
+    });
+
+    qs('#cancelProfileBtn').addEventListener('click', () => {
+      if (currentUser) {
+        qs('#inputName').value  = currentUser.name;
+        qs('#inputPhone').value = currentUser.phone || '';
+      }
+      qs('#profileError').textContent = '';
+    });
+
+    // ── 修改密码 ──────────────────────────────────────────────────────
+    qs('#changePwdBtn').addEventListener('click', async () => {
+      const oldPassword = qs('#inputOldPwd').value;
+      const newPassword = qs('#inputNewPwd').value;
+      qs('#pwdError').textContent = '';
+      if (!oldPassword || !newPassword) { qs('#pwdError').textContent = '请填写所有字段'; return; }
+      if (newPassword.length < 6)       { qs('#pwdError').textContent = '新密码至少 6 位'; return; }
+      try {
+        await fetchJson('/api/users/me/password', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ oldPassword, newPassword })
+        });
+        qs('#inputOldPwd').value = '';
+        qs('#inputNewPwd').value = '';
+        qs('#pwdError').style.color = 'var(--ok)';
+        qs('#pwdError').textContent = '✓ 密码修改成功';
+        setTimeout(() => { qs('#pwdError').textContent = ''; qs('#pwdError').style.color = ''; }, 2500);
+      } catch(e) {
+        qs('#pwdError').textContent = e.message || '修改失败';
+      }
+    });
+
+    // ── 密码显示切换 ──────────────────────────────────────────────────
+    qsa('.pwd-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = qs('#' + btn.dataset.target);
+        input.type = input.type === 'password' ? 'text' : 'password';
+      });
+    });
+
+    // ── 退出登录 ──────────────────────────────────────────────────────
+    qs('#logoutBtn').addEventListener('click', async () => {
+      await fetchJson('/api/auth/logout', { method: 'POST' }).catch(() => {});
+      location.href = '/login.html';
+    });
+
+    // ── 二维码 ────────────────────────────────────────────────────────
+    function renderQr(data) {
+      const payload = `SilverBridge|id=${data.id}|role=${data.role}|user=${data.username}`;
+      const size = 160; const cell = 8;
       const cols = Math.floor(size / cell);
       let bits = 0;
-      for (let i=0;i<payload.length;i++) bits = (bits * 131 + payload.charCodeAt(i)) >>> 0;
-
+      for (let i = 0; i < payload.length; i++) bits = (bits * 131 + payload.charCodeAt(i)) >>> 0;
       let rects = '';
-      for (let y=0;y<cols;y++){
-        for (let x=0;x<cols;x++){
-          const v = (bits ^ (x*2654435761) ^ (y*1597334677)) >>> 0;
-          const on = ((v >>> ((x+y)%24)) & 1) === 1;
-          // 留白边框
-          if (x<2 || y<2 || x>cols-3 || y>cols-3) continue;
+      for (let y = 0; y < cols; y++) {
+        for (let x = 0; x < cols; x++) {
+          const v = (bits ^ (x * 2654435761) ^ (y * 1597334677)) >>> 0;
+          const on = ((v >>> ((x + y) % 24)) & 1) === 1;
+          if (x < 2 || y < 2 || x > cols - 3 || y > cols - 3) continue;
           if (on) rects += `<rect x="${x*cell}" y="${y*cell}" width="${cell}" height="${cell}" fill="#111"/>`;
         }
       }
-
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-          <rect x="0" y="0" width="${size}" height="${size}" fill="#fff"/>
-          ${rects}
-        </svg>
-      `.trim();
-
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect x="0" y="0" width="${size}" height="${size}" fill="#fff"/>${rects}</svg>`;
+      const qrBox = qs('#qrBox');
       qrBox.innerHTML = svg;
       qrBox.dataset.svg = svg;
     }
 
-    qs('#modeSeg').addEventListener('click', (e) => {
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      mode = btn.dataset.value;
-      updateMode();
-    });
-
     qs('#print').addEventListener('click', () => window.print());
-
     qs('#save').addEventListener('click', () => {
-      const svg = qrBox.dataset.svg || '';
-      const blob = new Blob([svg], {type:'image/svg+xml'});
+      const svg = qs('#qrBox').dataset.svg || '';
+      const blob = new Blob([svg], { type: 'image/svg+xml' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `silverbridge-qr-${mode}.svg`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      a.href = url; a.download = 'silverbridge-qr.svg';
+      document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     });
 
-    updateMode();
+    // ── 启动 ─────────────────────────────────────────────────────────
+    loadProfile();
   </script>
 </body>
 </html>
