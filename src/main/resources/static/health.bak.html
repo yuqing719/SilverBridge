@@ -1,0 +1,217 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>健康监测</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <h1>健康监测</h1>
+      <div class="sub">趋势查看 + 手动录入（本页使用本地存储演示）</div>
+    </div>
+
+    <div class="content">
+      <div class="card">
+        <div class="card-title">
+          <span>趋势图</span>
+          <span class="badge" id="rangeBadge">7天</span>
+        </div>
+
+        <div class="segment" id="rangeSeg">
+          <button data-value="7" class="active">7天</button>
+          <button data-value="30">30天</button>
+        </div>
+
+        <div style="height:10px;"></div>
+        <div class="chart" id="chart"></div>
+
+        <div class="row muted">说明：折线图为纯前端 SVG 渲染</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>手动录入</span>
+          <span class="badge">保存后自动更新图表</span>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <div class="muted">收缩压（mmHg）</div>
+            <input id="sys" class="input" inputmode="numeric" placeholder="例如 120" />
+          </div>
+          <div>
+            <div class="muted">舒张压（mmHg）</div>
+            <input id="dia" class="input" inputmode="numeric" placeholder="例如 80" />
+          </div>
+        </div>
+
+        <div style="height:10px;"></div>
+
+        <div>
+          <div class="muted">血糖（mmol/L）</div>
+          <input id="glu" class="input" inputmode="decimal" placeholder="例如 5.6" />
+        </div>
+
+        <div style="height:12px;"></div>
+        <button id="save" class="btn btn-primary" style="width:100%;">保存</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>最近记录</span>
+          <span class="badge">最多展示 8 条</span>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>血压</th>
+              <th>血糖</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>医生建议</span>
+          <span class="badge">演示</span>
+        </div>
+        <div class="muted">规律监测，保持低盐饮食，异常及时就医。</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    renderNav('health');
+
+    const KEY = 'sb.health.records';
+    const rangeBadge = qs('#rangeBadge');
+    const rangeSeg = qs('#rangeSeg');
+    const chartEl = qs('#chart');
+    const rowsEl = qs('#rows');
+
+    let rangeDays = '7';
+
+    function parseNum(v){
+      const n = Number(String(v).trim());
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function getRecords(){
+      return lsGet(KEY, []);
+    }
+
+    function addRecord(rec){
+      const list = getRecords();
+      list.unshift(rec);
+      lsSet(KEY, list.slice(0, 60));
+    }
+
+    function recentRows(){
+      const list = getRecords().slice(0, 8);
+      rowsEl.innerHTML = '';
+      for (const r of list) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="muted">${r.at}</td>
+          <td>${r.sys}/${r.dia}</td>
+          <td>${r.glu}</td>
+        `;
+        rowsEl.appendChild(tr);
+      }
+      if (list.length === 0) {
+        rowsEl.innerHTML = `<tr><td colspan="3" class="muted">暂无记录</td></tr>`;
+      }
+    }
+
+    function renderChart(){
+      const list = getRecords();
+      const days = Number(rangeDays);
+      const points = list.slice(0, Math.min(days, 30)).reverse();
+
+      if (points.length < 2) {
+        chartEl.innerHTML = `<div class="muted">录入至少 2 条数据后显示趋势</div>`;
+        return;
+      }
+
+      const w = 360;
+      const h = 140;
+      const pad = 14;
+
+      const values = points.map(p => p.sys);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const span = Math.max(10, max - min);
+
+      const xs = points.map((_, i) => pad + (w - pad*2) * (i / (points.length - 1)));
+      const ys = points.map((p) => {
+        const t = (p.sys - min) / span;
+        return (h - pad) - t * (h - pad*2);
+      });
+
+      const poly = xs.map((x,i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+
+      chartEl.innerHTML = `
+        <svg viewBox="0 0 ${w} ${h}" width="100%" height="160" aria-label="blood pressure trend">
+          <polyline points="${poly}" fill="none" stroke="#111" stroke-width="2" />
+          ${xs.map((x,i) => `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3" fill="#111" />`).join('')}
+          <text x="${pad}" y="12" font-size="10" fill="#666">收缩压（mmHg）</text>
+          <text x="${w-pad}" y="12" text-anchor="end" font-size="10" fill="#666">min ${min} / max ${max}</text>
+        </svg>
+      `;
+    }
+
+    function refresh(){
+      rangeBadge.textContent = rangeDays + '天';
+      recentRows();
+      renderChart();
+    }
+
+    rangeSeg.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      rangeDays = btn.dataset.value;
+      setSegmentActive('#rangeSeg', rangeDays);
+      refresh();
+    });
+
+    qs('#save').addEventListener('click', () => {
+      const sys = parseNum(qs('#sys').value);
+      const dia = parseNum(qs('#dia').value);
+      const glu = parseNum(qs('#glu').value);
+      if (sys === null || dia === null || glu === null) {
+        alert('请完整输入数值');
+        return;
+      }
+      addRecord({ at: nowStr(), sys, dia, glu });
+      qs('#sys').value = '';
+      qs('#dia').value = '';
+      qs('#glu').value = '';
+      refresh();
+    });
+
+    // init demo data
+    if (getRecords().length === 0) {
+      const base = 120;
+      const demo = [];
+      for (let i=0;i<6;i++){
+        demo.unshift({
+          at: `${todayStr()} ${(8+i).toString().padStart(2,'0')}:00`,
+          sys: base + (i%3-1)*4,
+          dia: 80 + (i%3-1)*3,
+          glu: 5.6 + (i%3-1)*0.2
+        });
+      }
+      lsSet(KEY, demo.reverse());
+    }
+
+    refresh();
+  </script>
+</body>
+</html>
