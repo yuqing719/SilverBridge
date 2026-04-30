@@ -8,7 +8,10 @@ function getParam(name, fallback){
 }
 
 async function fetchJson(url, options){
-  const res = await fetch(url, options);
+  const res = await fetch(url, {
+    credentials: 'include',   // 发送同源 Session Cookie
+    ...options
+  });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
