@@ -45,5 +45,13 @@ public final class SessionUtil {
         }
     }
 
+    public static long getRequiredUserId(HttpSession session) {
+        LoginUser lu = get(session);
+        if (lu == null) {
+            throw new org.example.safety.service.UnauthorizedException("未登录");
+        }
+        return lu.id();
+    }
+
     public record LoginUser(long id, String username, String name, UserRole role) {}
 }
