@@ -37,6 +37,7 @@ function renderNav(active){
     <div class="nav-inner">
       <a href="/safety.html" data-key="safety"><span class="icon">🛡️</span>安全</a>
       <a href="/health.html" data-key="health"><span class="icon">📈</span>健康</a>
+      <a href="/activity.html" data-key="activity"><span class="icon">🎉</span>活动</a>
       <a href="/volunteer.html" data-key="volunteer"><span class="icon">🤝</span>志愿</a>
       <a href="/profile.html" data-key="profile"><span class="icon">👤</span>个人</a>
     </div>

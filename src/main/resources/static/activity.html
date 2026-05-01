@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>活动</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <h1>社区活动</h1>
+      <div class="sub">提升活跃度与参与感</div>
+    </div>
+
+    <div class="content">
+      <div class="card">
+        <div class="card-title">
+          <span>活动报名</span>
+          <span class="badge" id="activityBadge">加载中</span>
+        </div>
+        <div id="activities"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>活动签到</span>
+          <span class="badge">选择活动签到</span>
+        </div>
+        <div id="checkinSection">
+          <div class="row">
+            <select id="activitySelect" class="btn" style="width:100%;padding:10px;">
+              <option value="">选择活动</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button id="checkinBtn" class="btn btn-primary" disabled>签到</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    renderNav('activity');
+
+    const activitiesEl = qs('#activities');
+    const activityBadge = qs('#activityBadge');
+    const activitySelect = qs('#activitySelect');
+    const checkinBtn = qs('#checkinBtn');
+
+    function renderActivities(list) {
+      if (!list || list.length === 0) {
+        activityBadge.className = 'badge';
+        activityBadge.textContent = '暂无活动';
+        activitiesEl.innerHTML = `<div class="muted">暂无活动</div>`;
+        activitySelect.innerHTML = `<option value="">选择活动</option>`;
+        return;
+      }
+      activityBadge.className = 'badge';
+      activityBadge.textContent = `${list.length} 个活动`;
+      const items = list.map(a => {
+        const registered = a.registered; // Assume backend provides this
+        const canRegister = !registered && a.currentParticipants < a.maxParticipants;
+        return `
+          <div style="padding:10px 0;border-top:1px solid var(--line);">
+            <div><strong>${a.title}</strong></div>
+            <div class="muted">${a.description}</div>
+            <div class="muted">时间：${formatDateTime(a.date)} | 地点：${a.location}</div>
+            <div class="muted">报名人数：${a.currentParticipants}/${a.maxParticipants}</div>
+            <div style="margin-top:10px;">
+              ${canRegister ? `<button class="btn btn-primary" onclick="registerForActivity(${a.id})">报名</button>` :
+                registered ? `<span class="badge badge-ok">已报名</span>` : `<span class="badge badge-danger">名额已满</span>`}
+            </div>
+          </div>
+        `;
+      }).join('');
+      activitiesEl.innerHTML = `<div>${items}</div>`;
+
+      // Update activity select options for check-in
+      activitySelect.innerHTML = `<option value="">选择活动</option>` + list.map(a => `
+        <option value="${a.id}">${a.title} - ${a.date} - ${a.location}</option>
+      `).join('');
+    }
+
+    async function loadActivities() {
+      try {
+        const activities = await fetchJson('/api/activities');
+        renderActivities(activities);
+      } catch (e) {
+        if (e.status === 401) {
+          activityBadge.className = 'badge badge-danger';
+          activityBadge.textContent = '未登录';
+          activitiesEl.innerHTML = `<div class="muted">请先<a href="/login.html">登录</a>后查看活动</div>`;
+          activitySelect.innerHTML = `<option value="">请先登录</option>`;
+        } else {
+          activityBadge.className = 'badge badge-danger';
+          activityBadge.textContent = '加载失败';
+          activitiesEl.innerHTML = `<div class="muted">加载失败：${e.message}</div>`;
+        }
+      }
+    }
+
+    async function registerForActivity(activityId) {
+      try {
+        await fetchJson(`/api/activities/${activityId}/register`, { method: 'POST' });
+        alert('报名成功！');
+        await loadActivities();
+      } catch (e) {
+        if (e.status === 401) {
+          alert('请先登录');
+        } else {
+          alert('报名失败：' + e.message);
+        }
+      }
+    }
+
+    activitySelect.addEventListener('change', () => {
+      checkinBtn.disabled = !activitySelect.value;
+    });
+
+    checkinBtn.addEventListener('click', async () => {
+      const activityId = activitySelect.value;
+      if (!activityId) return;
+      try {
+        await fetchJson(`/api/activities/${activityId}/checkin`, { method: 'POST' });
+        alert('签到成功！');
+        activitySelect.value = '';
+        checkinBtn.disabled = true;
+      } catch (e) {
+        if (e.status === 401) {
+          alert('请先登录');
+        } else {
+          alert('签到失败：' + e.message);
+        }
+      }
+    });
+
+    (async () => {
+      await loadActivities();
+    })();
+  </script>
+</body>
+</html>

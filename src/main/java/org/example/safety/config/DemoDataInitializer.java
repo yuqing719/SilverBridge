@@ -6,6 +6,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+
 /**
  * 启动时写入演示数据（仅在数据库为空时执行）。
  * 演示账号：
@@ -18,16 +20,19 @@ public class DemoDataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final ElderChildLinkRepository elderChildLinkRepository;
     private final EmergencyContactRepository emergencyContactRepository;
+    private final ActivityRepository activityRepository;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public DemoDataInitializer(
             UserRepository userRepository,
             ElderChildLinkRepository elderChildLinkRepository,
-            EmergencyContactRepository emergencyContactRepository
+            EmergencyContactRepository emergencyContactRepository,
+            ActivityRepository activityRepository
     ) {
         this.userRepository = userRepository;
         this.elderChildLinkRepository = elderChildLinkRepository;
         this.emergencyContactRepository = emergencyContactRepository;
+        this.activityRepository = activityRepository;
     }
 
     @Override
@@ -50,5 +55,10 @@ public class DemoDataInitializer implements CommandLineRunner {
 
         emergencyContactRepository.save(new EmergencyContact(elder, "儿子小王", "13800000000", 1));
         emergencyContactRepository.save(new EmergencyContact(elder, "社区值班", "02112345678", 2));
+
+        // Add demo activities
+        activityRepository.save(new Activity("社区健康讲座", "邀请专家讲解老年健康知识", LocalDateTime.now().plusDays(7), "社区活动中心", 50));
+        activityRepository.save(new Activity("太极拳晨练", "每周二、四上午太极拳练习", LocalDateTime.now().plusDays(3), "社区花园", 30));
+        activityRepository.save(new Activity("手工DIY活动", "制作手工饰品，增进交流", LocalDateTime.now().plusDays(10), "社区活动室", 20));
     }
 }
