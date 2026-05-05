@@ -16,9 +16,8 @@
     .logo .icon{font-size:40px;}
     .logo h2{margin:8px 0 4px;font-size:20px;}
     .logo p{color:var(--muted);font-size:13px;margin:0;}
-    .role-select{display:flex;gap:8px;margin-top:4px;}
-    .role-select label{flex:1;display:flex;align-items:center;gap:6px;
-      border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;font-size:13px;}
+    .role-select{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+    .role-select label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;font-size:13px;}
     .role-select input[type=radio]{accent-color:#111;}
     .role-select label:has(input:checked){background:#111;color:#fff;border-color:#111;}
   </style>
@@ -38,7 +37,6 @@
           <button data-tab="register">注册</button>
         </div>
 
-        <!-- 登录表单 -->
         <div id="panelLogin">
           <div class="form-group">
             <label>用户名</label>
@@ -50,10 +48,9 @@
           </div>
           <div class="error-msg" id="loginError"></div>
           <button class="btn btn-primary" id="loginBtn" style="width:100%;margin-top:4px;">登录</button>
-          <div class="muted row" style="text-align:center;">演示账号：elder1 / child1，密码均为 123456</div>
+          <div class="muted row" style="text-align:center;">演示账号：elder1 / child1 / volunteer1，密码均为 123456</div>
         </div>
 
-        <!-- 注册表单 -->
         <div id="panelRegister" style="display:none;">
           <div class="form-group">
             <label>用户名</label>
@@ -72,6 +69,7 @@
             <div class="role-select">
               <label><input type="radio" name="regRole" value="ELDER" checked />👴 老人</label>
               <label><input type="radio" name="regRole" value="CHILD" />👦 子女</label>
+              <label><input type="radio" name="regRole" value="VOLUNTEER" />🤝 志愿者</label>
             </div>
           </div>
           <div class="error-msg" id="regError"></div>
@@ -83,70 +81,73 @@
 
   <script src="/assets/app.js"></script>
   <script>
-    // ── 标签切换 ─────────────────────────────────────────────────────
     qs('#tabs').addEventListener('click', e => {
       const btn = e.target.closest('button');
       if (!btn) return;
       const tab = btn.dataset.tab;
       qsa('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-      qs('#panelLogin').style.display   = tab === 'login'    ? '' : 'none';
+      qs('#panelLogin').style.display = tab === 'login' ? '' : 'none';
       qs('#panelRegister').style.display = tab === 'register' ? '' : 'none';
     });
 
-    // ── 登录 ─────────────────────────────────────────────────────────
     qs('#loginBtn').addEventListener('click', async () => {
       const username = qs('#loginUsername').value.trim();
       const password = qs('#loginPassword').value;
       qs('#loginError').textContent = '';
       if (!username || !password) { qs('#loginError').textContent = '请填写用户名和密码'; return; }
       try {
-        await fetchJson('/api/auth/login', {
+        const user = await fetchJson('/api/auth/login', {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ username, password })
         });
-        redirectAfterLogin();
+        redirectAfterLogin(user);
       } catch(e) {
         qs('#loginError').textContent = e.message || '登录失败';
       }
     });
 
-    // ── 注册 ─────────────────────────────────────────────────────────
     qs('#registerBtn').addEventListener('click', async () => {
       const username = qs('#regUsername').value.trim();
-      const name     = qs('#regName').value.trim();
+      const name = qs('#regName').value.trim();
       const password = qs('#regPassword').value;
-      const role     = document.querySelector('input[name=regRole]:checked').value;
+      const role = document.querySelector('input[name=regRole]:checked').value;
       qs('#regError').textContent = '';
       if (!username || !name || !password) { qs('#regError').textContent = '请填写所有字段'; return; }
       if (password.length < 6) { qs('#regError').textContent = '密码至少 6 位'; return; }
       try {
-        await fetchJson('/api/auth/register', {
+        const user = await fetchJson('/api/auth/register', {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ username, name, password, role })
         });
-        redirectAfterLogin();
+        redirectAfterLogin(user);
       } catch(e) {
         qs('#regError').textContent = e.message || '注册失败';
       }
     });
 
-    // ── 回车快捷键 ───────────────────────────────────────────────────
-    qs('#loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') qs('#loginBtn').click(); });
-    qs('#regPassword').addEventListener('keydown',   e => { if(e.key==='Enter') qs('#registerBtn').click(); });
+    qs('#loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') qs('#loginBtn').click(); });
+    qs('#regPassword').addEventListener('keydown', e => { if (e.key === 'Enter') qs('#registerBtn').click(); });
 
-    function redirectAfterLogin() {
-      const next = new URLSearchParams(location.search).get('next') || '/safety.html';
-      location.href = next;
+    function redirectAfterLogin(user) {
+      const next = new URLSearchParams(location.search).get('next');
+      if (next) {
+        location.href = next;
+        return;
+      }
+      if (user.role === 'VOLUNTEER') {
+        location.href = '/volunteer.html';
+      } else {
+        location.href = '/safety.html';
+      }
     }
 
-    // ── 若已登录直接跳走 ─────────────────────────────────────────────
     (async () => {
       try {
-        await fetchJson('/api/auth/me');
-        redirectAfterLogin();
-      } catch { /* 未登录，正常展示登录页 */ }
+        const user = await fetchJson('/api/auth/me');
+        redirectAfterLogin(user);
+      } catch {}
     })();
   </script>
 </body>

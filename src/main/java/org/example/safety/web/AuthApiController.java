@@ -59,7 +59,7 @@ public class AuthApiController {
         try {
             return UserRole.valueOf(role.toUpperCase());
         } catch (Exception e) {
-            throw new IllegalArgumentException("无效角色，应为 ELDER 或 CHILD: " + role);
+            throw new IllegalArgumentException("无效角色，应为 ELDER、CHILD 或 VOLUNTEER: " + role);
         }
     }
 
