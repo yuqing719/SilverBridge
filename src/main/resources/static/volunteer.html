@@ -3,35 +3,55 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>志愿者</title>
+  <title>志愿服务</title>
   <link rel="stylesheet" href="/assets/app.css" />
+  <style>
+    .service-item,.order-item,.point-item{padding:12px 0;border-top:1px solid var(--line);} 
+    .service-item:first-child,.order-item:first-child,.point-item:first-child{border-top:0;}
+    .meta{color:var(--muted);font-size:12px;line-height:1.6;}
+    .title-row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+    textarea.input{min-height:84px;resize:vertical;}
+    .empty{color:var(--muted);font-size:13px;padding:8px 0;}
+  </style>
 </head>
 <body>
   <div class="app">
     <div class="header">
-      <h1>志愿者大厅</h1>
-      <div class="sub">接单服务 + 积分记录（本页使用本地存储演示）</div>
+      <h1 id="pageTitle">志愿服务</h1>
+      <div class="sub" id="pageSub">加载中…</div>
     </div>
 
     <div class="content">
-      <div class="card">
+      <div class="card" id="elderOrderCard" style="display:none;">
         <div class="card-title">
-          <span>筛选</span>
-          <span class="badge" id="pointBadge">积分 0</span>
+          <span>服务列表</span>
+          <span class="badge" id="serviceCount">0</span>
         </div>
-        <div class="segment" id="tabSeg">
-          <button data-value="all" class="active">全部</button>
-          <button data-value="near">距离</button>
-          <button data-value="mine">记录</button>
-        </div>
+        <div id="serviceList"></div>
       </div>
 
-      <div class="card" id="listCard">
+      <div class="card" id="pendingOrderCard" style="display:none;">
         <div class="card-title">
-          <span id="listTitle">任务列表</span>
-          <span class="badge" id="listBadge">0</span>
+          <span>待接单订单</span>
+          <span class="badge" id="pendingCount">0</span>
         </div>
-        <div id="list"></div>
+        <div id="pendingList"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span id="mineTitle">我的订单</span>
+          <span class="badge" id="mineCount">0</span>
+        </div>
+        <div id="mineList"></div>
+      </div>
+
+      <div class="card" id="pointsCard" style="display:none;">
+        <div class="card-title">
+          <span>我的积分</span>
+          <span class="badge badge-ok" id="pointTotal">0</span>
+        </div>
+        <div id="pointList"></div>
       </div>
     </div>
   </div>
@@ -40,112 +60,219 @@
   <script>
     renderNav('volunteer');
 
-    const KEY = 'sb.volunteer.accepted';
-    const pointBadge = qs('#pointBadge');
-    const listTitle = qs('#listTitle');
-    const listBadge = qs('#listBadge');
-    const listEl = qs('#list');
+    let currentUser = null;
+    let services = [];
 
-    let tab = 'all';
+    const roleText = { ELDER:'老人', CHILD:'子女', VOLUNTEER:'志愿者' };
+    const statusText = { PENDING:'待接单', ACCEPTED:'已接单', COMPLETED:'已完成' };
+    const statusClass = { PENDING:'badge', ACCEPTED:'badge badge-ok', COMPLETED:'badge badge-ok' };
 
-    const tasks = [
-      { id:'t1', title:'陪同买菜', where:'社区门口', distanceKm:0.8, points:10, time:'今天 16:00' },
-      { id:'t2', title:'上门测血压', where:'3号楼 502', distanceKm:1.6, points:12, time:'今天 18:30' },
-      { id:'t3', title:'手机使用指导', where:'活动室', distanceKm:0.5, points:8, time:'明天 10:00' }
-    ];
-
-    function accepted(){
-      return lsGet(KEY, []);
+    function requireLoginRedirect(){
+      location.href = '/login.html?next=' + encodeURIComponent('/volunteer.html');
     }
 
-    function isAccepted(id){
-      return accepted().some(x => x.id === id);
+    function escapeHtml(v){
+      return String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
     }
 
-    function acceptTask(task){
-      const list = accepted();
-      if (list.some(x => x.id === task.id)) return;
-      list.unshift({ ...task, acceptedAt: nowStr() });
-      lsSet(KEY, list);
+    async function loadMe(){
+      try{
+        currentUser = await fetchJson('/api/auth/me');
+      }catch(e){
+        if (e.status === 401) return requireLoginRedirect();
+        throw e;
+      }
     }
 
-    function points(){
-      return accepted().reduce((sum, t) => sum + (t.points || 0), 0);
+    function setupRoleUi(){
+      qs('#pageSub').textContent = `${roleText[currentUser.role] || currentUser.role}：${currentUser.name}`;
+      if (currentUser.role === 'ELDER') {
+        qs('#pageTitle').textContent = '老人下单志愿服务';
+        qs('#elderOrderCard').style.display = '';
+        qs('#mineTitle').textContent = '我的服务订单';
+      } else if (currentUser.role === 'VOLUNTEER') {
+        qs('#pageTitle').textContent = '志愿者接单服务';
+        qs('#pendingOrderCard').style.display = '';
+        qs('#pointsCard').style.display = '';
+        qs('#mineTitle').textContent = '我接到的订单';
+      } else {
+        qs('#pageTitle').textContent = '志愿服务';
+        qs('#mineTitle').textContent = '当前角色暂无该功能';
+      }
     }
 
-    function render(){
-      pointBadge.textContent = `积分 ${points()}`;
-
-      if (tab === 'mine') {
-        listTitle.textContent = '我的记录';
-        const mine = accepted();
-        listBadge.textContent = mine.length;
-        if (mine.length === 0) {
-          listEl.innerHTML = `<div class="muted">暂无记录，去“全部”接单吧</div>`;
-          return;
-        }
-        listEl.innerHTML = mine.map(t => `
-          <div style="padding:10px 0;border-top:1px solid var(--line);">
-            <div style="display:flex;justify-content:space-between;gap:10px;">
-              <div>
-                <div style="font-weight:800;">${t.title}</div>
-                <div class="muted">${t.where} · ${t.time}</div>
-                <div class="muted">接单时间：${t.acceptedAt}</div>
-              </div>
-              <div style="text-align:right;min-width:88px;">
-                <div class="badge badge-ok">+${t.points}</div>
-                <div class="muted">已接单</div>
-              </div>
-            </div>
-          </div>
-        `).join('');
+    async function loadServices(){
+      services = await fetchJson('/api/volunteer-services');
+      qs('#serviceCount').textContent = services.length;
+      const list = qs('#serviceList');
+      if (!services.length) {
+        list.innerHTML = '<div class="empty">暂无可下单服务</div>';
         return;
       }
+      list.innerHTML = services.map(s => `
+        <div class="service-item">
+          <div class="title-row">
+            <div>
+              <div style="font-weight:800;">${escapeHtml(s.name)}</div>
+              <div class="meta">${escapeHtml(s.description)}</div>
+            </div>
+            <span class="badge badge-ok">${s.points} 积分</span>
+          </div>
+          <div style="height:10px"></div>
+          <textarea class="input" id="remark-${s.id}" placeholder="请输入服务需求说明，例如上门时间、地点等"></textarea>
+          <div style="height:10px"></div>
+          <button class="btn btn-primary" data-create-order="${s.id}" style="width:100%;">提交订单</button>
+        </div>
+      `).join('');
+    }
 
-      const list = (tab === 'near')
-        ? [...tasks].sort((a,b) => a.distanceKm - b.distanceKm)
-        : tasks;
-
-      listTitle.textContent = tab === 'near' ? '按距离排序' : '任务列表';
-      listBadge.textContent = list.length;
-
-      listEl.innerHTML = list.map(t => {
-        const acceptedFlag = isAccepted(t.id);
-        const btn = acceptedFlag
-          ? `<button class="btn" disabled style="width:100%;opacity:0.7;">已接受</button>`
-          : `<button class="btn btn-primary" data-accept="${t.id}" style="width:100%;">接受任务</button>`;
-
+    function renderOrders(target, orders, volunteerView){
+      const el = qs(target);
+      if (!orders.length) {
+        el.innerHTML = '<div class="empty">暂无数据</div>';
+        return;
+      }
+      el.innerHTML = orders.map(o => {
+        const actionBtn = volunteerView && o.status === 'PENDING'
+          ? `<button class="btn btn-primary" data-accept-order="${o.id}" style="width:100%;">接单</button>`
+          : volunteerView && o.status === 'ACCEPTED' && Number(o.volunteerId) === Number(currentUser.id)
+            ? `<button class="btn" data-complete-order="${o.id}" style="width:100%;">完成服务并结算积分</button>`
+            : '';
+        const counterpart = volunteerView
+          ? `老人：${escapeHtml(o.elderName)}`
+          : `志愿者：${escapeHtml(o.volunteerName || '待接单')}`;
         return `
-          <div style="padding:10px 0;border-top:1px solid var(--line);">
-            <div style="font-weight:800;">${t.title}</div>
-            <div class="muted">${t.where} · ${t.time}</div>
-            <div class="muted">距离 ${t.distanceKm} km · 积分 +${t.points}</div>
-            <div style="height:10px;"></div>
-            ${btn}
+          <div class="order-item">
+            <div class="title-row">
+              <div>
+                <div style="font-weight:800;">${escapeHtml(o.serviceName)}</div>
+                <div class="meta">${counterpart}</div>
+                <div class="meta">备注：${escapeHtml(o.remark || '无')}</div>
+                <div class="meta">下单时间：${formatDateTime(o.createdAt)}</div>
+                ${o.acceptedAt ? `<div class="meta">接单时间：${formatDateTime(o.acceptedAt)}</div>` : ''}
+                ${o.completedAt ? `<div class="meta">完成时间：${formatDateTime(o.completedAt)}</div>` : ''}
+              </div>
+              <div style="text-align:right;min-width:86px;">
+                <span class="${statusClass[o.status] || 'badge'}">${statusText[o.status] || o.status}</span>
+                <div class="meta" style="margin-top:6px;">${o.points} 积分</div>
+              </div>
+            </div>
+            ${actionBtn ? `<div style="height:10px"></div>${actionBtn}` : ''}
           </div>
         `;
       }).join('');
     }
 
-    qs('#tabSeg').addEventListener('click', (e) => {
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      tab = btn.dataset.value;
-      setSegmentActive('#tabSeg', tab);
-      render();
+    function renderPoints(summary){
+      qs('#pointTotal').textContent = `总积分 ${summary.totalPoints}`;
+      const list = qs('#pointList');
+      if (!summary.records.length) {
+        list.innerHTML = '<div class="empty">暂无积分明细</div>';
+        return;
+      }
+      list.innerHTML = summary.records.map(r => `
+        <div class="point-item">
+          <div class="title-row">
+            <div>
+              <div style="font-weight:800;">${escapeHtml(r.description)}</div>
+              <div class="meta">订单号：${r.orderId}</div>
+              <div class="meta">结算时间：${formatDateTime(r.createdAt)}</div>
+            </div>
+            <span class="badge badge-ok">+${r.points}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadMine(){
+      const orders = await fetchJson('/api/volunteer-services/orders/mine');
+      qs('#mineCount').textContent = orders.length;
+      renderOrders('#mineList', orders, currentUser.role === 'VOLUNTEER');
+    }
+
+    async function loadPending(){
+      const orders = await fetchJson('/api/volunteer-services/orders/pending');
+      qs('#pendingCount').textContent = orders.length;
+      renderOrders('#pendingList', orders, true);
+    }
+
+    async function loadPoints(){
+      const summary = await fetchJson('/api/volunteer-services/points/me');
+      renderPoints(summary);
+    }
+
+    async function loadAll(){
+      await loadMe();
+      setupRoleUi();
+      if (currentUser.role === 'ELDER') {
+        await loadServices();
+        await loadMine();
+      } else if (currentUser.role === 'VOLUNTEER') {
+        await loadPending();
+        await loadMine();
+        await loadPoints();
+      } else {
+        qs('#mineList').innerHTML = '<div class="empty">当前角色暂不开放志愿服务模块</div>';
+      }
+    }
+
+    document.body.addEventListener('click', async (e) => {
+      const createBtn = e.target.closest('[data-create-order]');
+      if (createBtn) {
+        const serviceId = Number(createBtn.dataset.createOrder);
+        const remark = qs(`#remark-${serviceId}`).value.trim();
+        try {
+          const order = await fetchJson('/api/volunteer-services/orders', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ serviceId, remark })
+          });
+          alert(`下单成功，当前状态：${statusText[order.status] || order.status}`);
+          qs(`#remark-${serviceId}`).value = '';
+          await loadMine();
+        } catch (err) {
+          alert(err.message || '下单失败');
+        }
+        return;
+      }
+
+      const acceptBtn = e.target.closest('[data-accept-order]');
+      if (acceptBtn) {
+        try {
+          await fetchJson(`/api/volunteer-services/orders/${acceptBtn.dataset.acceptOrder}/accept`, { method:'POST' });
+          await loadPending();
+          await loadMine();
+          alert('接单成功，订单状态已更新');
+        } catch (err) {
+          alert(err.message || '接单失败');
+          await loadPending();
+          await loadMine();
+        }
+        return;
+      }
+
+      const completeBtn = e.target.closest('[data-complete-order]');
+      if (completeBtn) {
+        try {
+          await fetchJson(`/api/volunteer-services/orders/${completeBtn.dataset.completeOrder}/complete`, { method:'POST' });
+          await loadPending();
+          await loadMine();
+          await loadPoints();
+          alert('服务完成，积分已自动结算');
+        } catch (err) {
+          alert(err.message || '完成失败');
+        }
+      }
     });
 
-    listEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-accept]');
-      if (!btn) return;
-      const id = btn.dataset.accept;
-      const task = tasks.find(t => t.id === id);
-      if (!task) return;
-      acceptTask(task);
-      render();
-    });
-
-    render();
+    loadAll().catch(e => alert('页面加载失败：' + e.message));
+    setInterval(() => {
+      if (currentUser && currentUser.role === 'VOLUNTEER') {
+        loadPending().catch(()=>{});
+        loadMine().catch(()=>{});
+        loadPoints().catch(()=>{});
+      }
+    }, 15000);
   </script>
 </body>
 </html>

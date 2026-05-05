@@ -9,7 +9,7 @@ public record UserDto(
         String username,
         String name,
         String role,
-        String phone       // 已脱敏
+        String phone
 ) {
     public static UserDto from(User user) {
         return new UserDto(
@@ -21,7 +21,6 @@ public record UserDto(
         );
     }
 
-    /** 从 Session LoginUser 构建（Session 中的 name 可能已过时） */
     public static UserDto fromSession(SessionUtil.LoginUser lu, String phone) {
         return new UserDto(
                 lu.id(),
@@ -33,7 +32,9 @@ public record UserDto(
     }
 
     private static String maskPhone(String phone) {
-        if (phone == null || phone.length() < 7) return phone;
+        if (phone == null || phone.length() < 7) {
+            return phone;
+        }
         return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 }
